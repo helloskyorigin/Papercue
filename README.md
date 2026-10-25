@@ -31,3 +31,10 @@ Uploaded text/images go to Groq to run inference. Don't upload IDs or private st
 - [ ] Add server-side GROQ_API_KEY; test real English text, Hindi photo and PDF; check 413 and timeout behavior.
 - [ ] Verify mobile layout and readability; produce a 90–120s genuine demo of a live scan.
 - [ ] Link repository and deployed URL on Devpost; follow original-build timing rules and disclose Groq + AI coding tools.
+
+## Premium UI
+
+- Single-screen upload or paste workflow with disabled-until-ready action.
+- Source-linked task list with progress, copy/export, original notice preview and accessible interactive sample.
+- Responsive mobile layout and explicit notice-processing disclosure.
+- AI output and source quote validation remain unchanged; the model is still Groq.
