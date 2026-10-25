@@ -2,14 +2,16 @@
 
 **Every notice. A clear next step.** A student-friendly, evidence-aware AI tool that turns complicated school, scholarship, admission and exam notices into reviewable tasks, dates and a checklist.
 
+**Live:** https://papercue.ai.studio/ · **Hackathon submission draft:** [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md)
+
 ## Features
 
-- Single-screen, responsive workflow: upload PDF/PNG/JPG/WEBP (3 MB max) or paste up to 18,000 characters of text.
+- Responsive upload → scan → separate results page: upload PDF/PNG/JPG/WEBP (3 MB max) or paste up to 18,000 characters of text.
 - Real analysis is powered by **Groq** (not Gemini). Supports Hindi and English, though accuracy depends on legibility and model behavior.
 - Clear deadline status: unspecified dates are not invented. Each action displays the model's supporting quote with an evidence confidence label.
 - Complete actions interactively; download a plain-text checklist or `.ics` calendar file. No account, payment, form submission or automatic notifications.
 - Clearly labeled **fictional sample** to demonstrate the UI without an API key. This is not a live scan.
-- Original notice preview remains available for human review.
+- The results page shows matched source excerpts for human review. Always keep the original notice available to compare independently.
 
 ## Local development
 
@@ -29,7 +31,7 @@ For Vercel, import `helloskyorigin/Papercue` as a Next.js project and configure 
 
 - **Pasted text:** AI analysis with substring-matched evidence quotes. Quote matching verifies the quote appears in the original text, **not** that the interpretation is correct.
 - **Text PDFs:** Server parses selectable text from the first 10 pages. Scanned PDFs are not OCR-supported; upload clear JPG/PNG screenshots of their pages instead.
-- **Images:** An image is sent to the Groq vision model. Image quotes are flagged for manual review; they are **not** independently OCR-verified.
+- **Images:** A first Groq vision check screens for readable educational notices and transcribes visible text; a second model call extracts actions from that text. Unrelated/unreadable photos are rejected and incomplete notices warn about missing details. This screening can make mistakes and is **not** independently OCR-verified.
 - The 3 MB file limit protects Vercel's request-size limit. Date normalization and schema validation are conservative.
 - Text and files are sent to Groq for inference. No PaperCue document database is configured. Do not upload IDs or private records. Groq's retention policies are separate.
 - In-memory rate limiting is best effort only; use a shared limiter before scaling public traffic.
