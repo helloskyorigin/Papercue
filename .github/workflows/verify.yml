@@ -39,4 +39,4 @@ jobs:
           node -e 'const v=require("/tmp/papercue-health.json"); if(v.backend!=="nextjs-node"||v.configured!==false||v.provider!=="groq")process.exit(1);'
           code=$(curl -s -o /tmp/papercue-analysis.json -w '%{http_code}' -X POST http://127.0.0.1:3000/api/analyze -F 'text=Scholarship applications are due by 31 October 2026 at the school office.')
           test "$code" = "503"
-          node -e 'const v=require("/tmp/papercue-analysis.json"); if(v.code!=="GROQ_NOT_CONFIGURED")process.exit(1);'
+          node -e 'const v=require("/tmp/papercue-analysis.json"); if(v.code!=="AI_NOT_CONFIGURED")process.exit(1);'
