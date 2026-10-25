@@ -38,3 +38,8 @@ Uploaded text/images go to Groq to run inference. Don't upload IDs or private st
 - Source-linked task list with progress, copy/export, original notice preview and accessible interactive sample.
 - Responsive mobile layout and explicit notice-processing disclosure.
 - AI output and source quote validation remain unchanged; the model is still Groq.
+
+
+## AI Studio Build import troubleshooting
+
+**Groq is not automatically configured by AI Studio.** After import, pull the newest main commit, run the Next.js server-side API routes, and set `GROQ_API_KEY` in **Settings → Secrets**. GET `/api/health` checks server routing + key presence, not Groq network access. Follow [AI_STUDIO_SETUP.md](./AI_STUDIO_SETUP.md) for exact troubleshooting and an AI Studio repair prompt.
