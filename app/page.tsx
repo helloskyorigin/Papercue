@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   ArrowRight, ArrowUpRight, CalendarDays, Check, CheckCircle2, ChevronDown,
   ClipboardCopy, Clock3, Download, FileCheck2, FileText, Info, LoaderCircle,
@@ -16,7 +15,7 @@ type BackendStatus = 'checking' | 'ready' | 'unconfigured' | 'unverified' | 'off
 const MAX_FILE_SIZE = 3 * 1024 * 1024;
 const MAX_TEXT = 18000;
 
-const phases = ['Reading the notice', 'Finding dates & requirements', 'Checking supporting quotes', 'Preparing your plan'];
+const phases = ['Checking the photo is a notice', 'Reading the instructions', 'Finding missing details', 'Preparing your next steps'];
 
 // Fictional sample. Deliberately never sent to the AI or presented as an actual scan.
 const DEMO_TEXT = `BIRCHWOOD PUBLIC SCHOOL, PATNA\nStudent Scholarship Assistance — Notice\nDate of issue: 20 October 2026\nStudents of Classes 9 to 12 may apply for the school scholarship assistance programme.\nCompleted applications must be submitted to the school office by 28 October 2026.\nBring a copy of your last examination marksheet and a school identity card.\nApplicants should collect an application form from the administration office.\nIncomplete forms will not be considered.\nFor assistance, contact your class teacher.`;
@@ -49,7 +48,6 @@ function saveFile(data: string, filename: string, mime: string) {
 }
 
 export default function Home() {
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>('file');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -122,22 +120,27 @@ export default function Home() {
     try {
       sessionStorage.setItem('papercue-result-v1', JSON.stringify({ analysis, sample, createdAt: Date.now() }));
       sessionStorage.removeItem('papercue-done-v1');
-      router.push('/results');
+      // Full navigation avoids transient Home flashes during client route transitions.
+      // replace() also prevents browser Back from bouncing through the scan screen.
+      window.location.replace('/results');
+      return true;
     } catch {
-      setError('Unable to open your results. Enable temporary browser storage and retry.');
+      setError('Could not open your plan. Allow temporary browser storage and retry.');
+      return false;
     }
   }
   function demo() {
     if (loading) return;
-    openResults(DEMO_RESULT, true);
+    if (openResults(DEMO_RESULT, true)) setLoading(true);
   }
   async function analyze() {
     if (loading) return;
-    if (backendStatus === 'unconfigured') { setError(backendMessage); return; }
-    if (backendStatus === 'offline') { setError('The backend API is unavailable. This import may be running frontend-only; ensure Next.js server routes run and open /api/health.'); return; }
+    if (backendStatus === 'unconfigured') { setError('Notice scanning is temporarily unavailable. Please try again later.'); return; }
+    if (backendStatus === 'offline') { setError('Notice scanning is temporarily unavailable. Please try again later.'); return; }
     if (mode === 'text' && noticeText.trim().length < 35) { setError('Paste at least 35 characters from your notice.'); return; }
     if (mode === 'file' && !file) { setError('Choose a notice file first.'); return; }
     clearResult(); setLoading(true); setPhase(0);
+    let redirected = false;
     try {
       const form = new FormData();
       if (mode === 'file' && file) form.append('file', file);
@@ -151,10 +154,10 @@ export default function Home() {
       if (!type.includes('application/json')) { throw new Error('The AI backend returned a webpage instead of JSON. This often means AI Studio imported only the frontend: verify /api/analyze and /api/health in the server runtime.'); }
       const body: { analysis?: Analysis; error?: string; code?: string } = await response.json();
       if (!response.ok || !body.analysis) throw new Error(body.error || `AI request failed (${response.status}). Check server logs and Groq configuration.`);
-      openResults(body.analysis);
+      redirected = openResults(body.analysis);
     } catch (err) {
       setError(err instanceof Error && err.name === 'AbortError' ? 'Analysis timed out. Try a smaller notice.' : err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally { setLoading(false); }
+    } finally { if (!redirected) setLoading(false); }
   }
   function planText() {
     if (!result) return '';
@@ -180,7 +183,7 @@ export default function Home() {
   return <div id="top" className="site">
     <header className="site-header"><div className="wrap header-inner"><Brand/><nav aria-label="Primary navigation"><a href="#how-it-works">How it works</a><a href="#privacy">Privacy</a></nav><a className="header-action" href="#workspace">Try for free <ArrowUpRight size={16}/></a></div></header>
     <main>
-      {loading && <div className="scan-screen" role="status" aria-live="polite"><div className="scan-card"><div className="scan-mark"><FileText size={27}/></div><p className="scan-kicker">PAPER CUE IS READING</p><h2>{phases[phase]}</h2><p>Turning your notice into useful next steps.</p><div className="scan-bar"><span key={phase}/></div><small>Keep this tab open while your plan is prepared.</small></div></div>}
+      {loading && <div className="scan-screen" role="status" aria-live="polite"><div className="scan-card"><div className="scan-mark"><FileText size={27}/></div><p className="scan-kicker">CHECKING YOUR NOTICE</p><h2>{phases[phase]}</h2><p>Checking readability and turning clear instructions into next steps.</p><div className="scan-bar"><span key={phase}/></div><small>Keep this tab open while your plan is prepared.</small></div></div>}
       <section className="hero wrap" aria-labelledby="hero-title">
         <div className="hero-content"><div className="eyebrow"><span className="eyebrow-dot"/> YOUR NOTICE, SIMPLIFIED <span className="eyebrow-arrow">↗</span></div>
           <h1 id="hero-title">Never miss what <em>matters</em> in a notice.</h1>

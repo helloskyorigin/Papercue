@@ -50,7 +50,9 @@ export default function ResultsPage() {
   const tasks=a?.items||[];
   const done=checked.filter(i=>i<tasks.length);
   const progress=tasks.length?Math.round(done.length/tasks.length*100):0;
-  const extraReview=a?(a.items.filter(i=>i.evidenceStatus!=='matched').length+(a.deadline&&a.deadlineEvidenceStatus!=='matched'?1:0)+a.missingInformation.length):0;
+  const isPartial=a?.sourceStatus==='partial';
+  const nextIndex=tasks.findIndex((_,i)=>!done.includes(i));
+  const nextTask=nextIndex>=0?tasks[nextIndex]:null;
   function toggle(index:number) {
     const next=checked.includes(index)?checked.filter(i=>i!==index):[...checked,index];
     setChecked(next);
@@ -97,17 +99,37 @@ export default function ResultsPage() {
         </div>
       </section>
       {flash&&<div role="status" className="report-flash">{flash}</div>}
-      <section className="report-metrics" aria-label="Important notice details">
-        <div className="metric-tile date-focus"><div className="metric-title"><CalendarDays size={17}/> Important date</div><div className="metric-value">{dateLabel(a.deadline)}</div><div className="metric-caption">{a.deadline?'Confirm the date with the original notice':'No explicit complete date found'}</div></div>
-        <div className="metric-tile"><div className="metric-title"><ListChecks size={17}/> Actions to take</div><div className="metric-value">{tasks.length} steps</div><div className="metric-caption">{done.length} completed in this session</div></div>
-        <div className="metric-tile"><div className="metric-title"><ShieldCheck size={17}/> Worth checking</div><div className="metric-value">{extraReview} {extraReview===1?'detail':'details'}</div><div className="metric-caption">Missing info or quotes needing review</div></div>
+
+      {isPartial&&<section className="report-incomplete" role="status">
+        <AlertCircle size={23} aria-hidden="true"/>
+        <div><strong>This notice may be incomplete.</strong>
+          <p>Some details are missing or could not be confirmed. The steps below come only from readable lines—do not assume missing dates or requirements.</p>
+          {a.missingInformation.length>0&&<ul>{a.missingInformation.slice(0,4).map((x,i)=><li key={i}>{x}</li>)}</ul>}
+        </div>
+      </section>}
+      <section className="report-quick">
+        <div className="report-quick-date"><CalendarDays size={19}/>
+          <div><small>Important deadline</small><strong>{a.deadline?dateLabel(a.deadline):'Not stated in this copy'}</strong>
+            {!a.deadline&&<span>Check the complete original notice.</span>}
+          </div>
+        </div>
+        <div className="report-quick-steps"><ListChecks size={19}/>
+          <div><small>Clear actions found</small><strong>{tasks.length===1?'1 action':tasks.length+' actions'}</strong><span>{done.length} finished</span></div>
+        </div>
       </section>
+      {nextTask&&<section className="report-next-action">
+        <div><span className="report-next-label">START HERE · STEP {nextIndex+1}</span>
+          <h2>{nextTask.title}</h2><p>{nextTask.description||'Follow this instruction from the notice.'}</p>
+          {nextTask.dueDate&&<small>Due: {dateLabel(nextTask.dueDate)}</small>}
+        </div>
+        <a href="#next-steps" className="report-next-link">View full checklist <ArrowRight size={16}/></a>
+      </section>}
       <div className="report-grid">
         <div>
-          <section className="report-panel" aria-labelledby="tasks-title">
-            <div className="report-section-heading"><h2 id="tasks-title">Your next steps</h2><small>{done.length} of {tasks.length} done</small></div>
+          <section className="report-panel" id="next-steps" aria-labelledby="tasks-title">
+            <div className="report-section-heading"><h2 id="tasks-title">Action checklist</h2><small>{done.length} of {tasks.length} done</small></div>
             <div className="report-progress-track" role="progressbar" aria-label="Completed steps" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{width:progress+'%'}}/></div>
-            {!tasks.length&&<p className="report-note">No explicit tasks were found. Check your notice for any instructions that may have been missed.</p>}
+            {!tasks.length&&<p className="report-note">No reliable tasks were extracted. Please upload a clearer full notice.</p>}
             {tasks.map((it,i)=><article key={i} className={'report-task'+(done.includes(i)?' done':'')}>
               <button className="report-checkbox" type="button" aria-pressed={done.includes(i)} aria-label={(done.includes(i)?'Mark incomplete: ':'Mark complete: ')+it.title} onClick={()=>toggle(i)}>{done.includes(i)&&<Check size={16}/>}</button>
               <div className="report-task-main">
