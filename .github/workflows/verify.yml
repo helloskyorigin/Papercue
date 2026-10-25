@@ -24,3 +24,19 @@ jobs:
         run: npm run lint
       - name: Next.js production build
         run: npm run build
+
+      - name: HTTP smoke test — Next.js API routes without credentials
+        run: |
+          npm run start -- -p 3000 > /tmp/papercue-next.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 25); do
+            if curl -fsS http://127.0.0.1:3000/api/health > /tmp/papercue-health.json 2>/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/papercue-next.log; exit 1; fi
+          node -e 'const v=require("/tmp/papercue-health.json"); if(v.backend!=="nextjs-node"||v.configured!==false||v.provider!=="groq")process.exit(1);'
+          code=$(curl -s -o /tmp/papercue-analysis.json -w '%{http_code}' -X POST http://127.0.0.1:3000/api/analyze -F 'text=Scholarship applications are due by 31 October 2026 at the school office.')
+          test "$code" = "503"
+          node -e 'const v=require("/tmp/papercue-analysis.json"); if(v.code!=="GROQ_NOT_CONFIGURED")process.exit(1);'
