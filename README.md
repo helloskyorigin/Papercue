@@ -1,45 +1,52 @@
-# PaperCue AI — Notice to Action
+# PaperCue AI
 
-Every notice. A clear next step. This student hackathon prototype extracts actions, evidence excerpts, important dates and a checklist from notices.
+**Every notice. A clear next step.** A student-friendly, evidence-aware AI tool that turns complicated school, scholarship, admission and exam notices into reviewable tasks, dates and a checklist.
 
-## Run and deploy
+## Features
+
+- Single-screen, responsive workflow: upload PDF/PNG/JPG/WEBP (3 MB max) or paste up to 18,000 characters of text.
+- Real analysis is powered by **Groq** (not Gemini). Supports Hindi and English, though accuracy depends on legibility and model behavior.
+- Clear deadline status: unspecified dates are not invented. Each action displays the model's supporting quote with an evidence confidence label.
+- Complete actions interactively; download a plain-text checklist or `.ics` calendar file. No account, payment, form submission or automatic notifications.
+- Clearly labeled **fictional sample** to demonstrate the UI without an API key. This is not a live scan.
+- Original notice preview remains available for human review.
+
+## Local development
+
 ```bash
 npm install
 cp .env.example .env.local
-# Set GROQ_API_KEY (server-side only)
+# Set GROQ_API_KEY in .env.local (server-side only)
+npm run dev
 npm test
 npm run lint
 npm run build
-npm run dev
 ```
-Import the repository into Vercel as a Next.js project and set `GROQ_API_KEY` in Vercel Environment Variables. `GROQ_MODEL` is optional (default: `qwen/qwen3.8-27b`, currently a vision-capable preview model requiring Groq access). No Gemini API is called.
 
-## Inputs and evidence
-- Paste plain notice text (max 18,000 characters).
-- Upload PNG/JPG/WEBP (max 3 MB). Sent as a vision input to Groq; AI-read image quotes are **not independently verified**.
-- Upload text-based PDF (max 3 MB); first 10 pages parsed into selectable text server-side via `pdf-parse`. Quotes can be string-matched against extracted text. Scanned PDFs do not work: use a screenshot (PNG/JPG).
-- Quote matching demonstrates only string presence, not interpretation accuracy, date correctness, official authority or eligibility.
-- Typed JSON validation and conservative date validation. Ambiguous dates should remain unknown.
-- Checklist TXT export and .ics calendar file download; no auto-notifications or application submission.
-- Fictional demo data is clearly labeled; don't present as real scanning.
+For Vercel, import `helloskyorigin/Papercue` as a Next.js project and configure `GROQ_API_KEY` in the appropriate environment. `GROQ_MODEL` can override the current Groq vision model. Never place the API key in a `NEXT_PUBLIC_` variable or commit it.
 
-## Privacy and limitations
-Uploaded text/images go to Groq to run inference. Don't upload IDs or private student records. No app database. In-memory IP limiter is best-effort and not shared between Vercel instances; install a shared limiter/WAF before heavy public traffic. Verify every deadline against the original official notice. Groq account quotas/costs may apply.
+## Documents and evidence
 
-## Submission preparation
-- [ ] npm install, npm test, npm run lint, npm run build
-- [ ] Add server-side GROQ_API_KEY; test real English text, Hindi photo and PDF; check 413 and timeout behavior.
-- [ ] Verify mobile layout and readability; produce a 90–120s genuine demo of a live scan.
-- [ ] Link repository and deployed URL on Devpost; follow original-build timing rules and disclose Groq + AI coding tools.
+- **Pasted text:** AI analysis with substring-matched evidence quotes. Quote matching verifies the quote appears in the original text, **not** that the interpretation is correct.
+- **Text PDFs:** Server parses selectable text from the first 10 pages. Scanned PDFs are not OCR-supported; upload clear JPG/PNG screenshots of their pages instead.
+- **Images:** An image is sent to the Groq vision model. Image quotes are flagged for manual review; they are **not** independently OCR-verified.
+- The 3 MB file limit protects Vercel's request-size limit. Date normalization and schema validation are conservative.
+- Text and files are sent to Groq for inference. No PaperCue document database is configured. Do not upload IDs or private records. Groq's retention policies are separate.
+- In-memory rate limiting is best effort only; use a shared limiter before scaling public traffic.
 
-## Premium UI
+## Hackathon submission checklist
 
-- Single-screen upload or paste workflow with disabled-until-ready action.
-- Source-linked task list with progress, copy/export, original notice preview and accessible interactive sample.
-- Responsive mobile layout and explicit notice-processing disclosure.
-- AI output and source quote validation remain unchanged; the model is still Groq.
+- [ ] `npm test` and `npm run lint` and `npm run build` pass in GitHub Actions.
+- [ ] Set `GROQ_API_KEY` securely in the deployed environment.
+- [ ] Run actual scans using a real English notice, Hindi image, selectable-text PDF and a scanned-PDF error case.
+- [ ] Test on narrow mobile screens and desktop, plus drag/drop and copy/export.
+- [ ] Record a truthful demo video (sample mode explicitly labeled), then add the deployed URL, GitHub repository, screenshots and AI-tool disclosure to the competition submission.
 
+## AI Studio import troubleshooting (important)
 
-## AI Studio Build import troubleshooting
+Google AI Studio Build defaults to React and supports a Node.js server, but import/remix must retain the actual server-side `/api/*` endpoints. **PaperCue requires a running backend plus the GROQ_API_KEY server secret**; the automatic Gemini key does not configure Groq.
 
-**Groq is not automatically configured by AI Studio.** After import, pull the newest main commit, run the Next.js server-side API routes, and set `GROQ_API_KEY` in **Settings → Secrets**. GET `/api/health` checks server routing + key presence, not Groq network access. Follow [AI_STUDIO_SETUP.md](./AI_STUDIO_SETUP.md) for exact troubleshooting and an AI Studio repair prompt.
+- [AI Studio full setup and repair prompt](./AI_STUDIO_SETUP.md)
+- Check GET `/api/health`: `configured: true` means backend and secret are visible (it **does not** call Groq).
+- Only successful POST `/api/analyze` with a **real** notice proves live analysis.
+- Missing key / wrong deployment / invalid model / rate limit now produce distinct user-visible errors. Never ship an API key to client code.
