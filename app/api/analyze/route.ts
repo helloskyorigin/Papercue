@@ -91,7 +91,7 @@ export async function POST(req:NextRequest) {
     let parsed:unknown;
     try {parsed=JSON.parse(generated);} catch {return fail('AI returned incomplete JSON. Try a smaller notice or clearer image.',502,'GROQ_RESPONSE_INVALID');}
     if(!parsed || typeof parsed!=='object' || Array.isArray(parsed)) return fail('AI returned an invalid result. Please retry.',502);
-    const cleaned=safeOutput(parsed as Record<string,unknown>,text,false,mode);
+    const cleaned=safeOutput(parsed as Record<string,unknown>,text);
     const validated=AnalysisSchema.safeParse(cleaned);
     if(!validated.success) return fail('AI could not structure this notice reliably; please retry.',502);
     return NextResponse.json({analysis:validated.data},{headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
