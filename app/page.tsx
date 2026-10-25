@@ -20,6 +20,7 @@ const phases = ['Checking the photo is a notice', 'Reading the instructions', 'F
 // Fictional sample. Deliberately never sent to the AI or presented as an actual scan.
 const DEMO_TEXT = `BIRCHWOOD PUBLIC SCHOOL, PATNA\nStudent Scholarship Assistance — Notice\nDate of issue: 20 October 2026\nStudents of Classes 9 to 12 may apply for the school scholarship assistance programme.\nCompleted applications must be submitted to the school office by 28 October 2026.\nBring a copy of your last examination marksheet and a school identity card.\nApplicants should collect an application form from the administration office.\nIncomplete forms will not be considered.\nFor assistance, contact your class teacher.`;
 const DEMO_RESULT: Analysis = {
+  sourceStatus: 'complete',
   documentTitle: 'Student Scholarship Assistance',
   documentLanguage: 'English', issuer: 'Birchwood Public School (fictional)',
   summary: 'Students in Classes 9–12 can apply for scholarship assistance. Collect the form, prepare documents, and submit it to the school office by the deadline.',

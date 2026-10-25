@@ -9,13 +9,13 @@ test('upload keeps full-stack routes and redirects after real analysis',()=>{
   assert.match(page,/fetch\('\/api\/health'/);
   assert.match(page,/fetch\('\/api\/analyze'/);
   assert.match(page,/sessionStorage\.setItem\('papercue-result-v1'/);
-  assert.match(page,/router\.push\('\/results'\)/);
+  assert.match(page,/window\.location\.replace\('\/results'\)/);
   assert.doesNotMatch(page,/Groq verified/);
 });
 test('standalone results can recover session data and display important actions',()=>{
   assert.match(results,/sessionStorage\.getItem\('papercue-result-v1'/);
   assert.match(results,/AnalysisSchema\.safeParse/);
-  assert.match(results,/Your next steps/);
+  assert.match(results,/Action checklist/);
   assert.match(results,/Missing or unclear/);
   assert.match(results,/calendarContent/);
 });
