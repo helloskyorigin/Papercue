@@ -1,12 +1,13 @@
 import {NextRequest,NextResponse} from "next/server";
 import {AnalysisSchema} from "@/lib/types";
+import {groqFailure,hasConfiguredKey} from "@/lib/diagnostics.mjs";
 import {safeOutput} from "@/lib/analysis.mjs";
 import {makeGroqRequest,fileSignatureMatches,MAX_UPLOAD_BYTES,GROQ_ENDPOINT,DEFAULT_GROQ_MODEL} from "@/lib/groq.mjs";
 export const runtime="nodejs";
 export const maxDuration=60;
 const ALLOWED=new Set(["application/pdf","image/png","image/jpeg","image/webp"]);
 const RATE=new Map<string,{time:number;count:number}>();
-const fail=(error:string,status=400)=>NextResponse.json({error},{status,headers:{"Cache-Control":"no-store"}});
+const fail=(error:string,status=400,code="ANALYSIS_ERROR")=>NextResponse.json({error,code},{status,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 async function pdfText(bytes:Buffer) {
  const {PDFParse}=await import("pdf-parse");
  const parser=new PDFParse({data:new Uint8Array(bytes)});
@@ -16,7 +17,7 @@ async function pdfText(bytes:Buffer) {
 export async function POST(req:NextRequest) {
  try {
   const key=process.env.GROQ_API_KEY;
-  if(!key||key.startsWith("replace_"))return fail("Groq API key not configured. Add GROQ_API_KEY in Vercel environment settings.",503);
+  if(!hasConfiguredKey(key))return fail("Groq secret missing. Add GROQ_API_KEY in AI Studio Settings > Secrets or Vercel server environment, then restart.",503,"GROQ_NOT_CONFIGURED");
   if(Number(req.headers.get("content-length")||0)>MAX_UPLOAD_BYTES+200000)return fail("Maximum uploaded file size is 3 MB.",413);
   const ip=(req.headers.get("x-real-ip")||req.headers.get("x-forwarded-for")||"unknown").split(",")[0].trim(),now=Date.now(),prev=RATE.get(ip);
   if(prev&&now-prev.time<60000&&prev.count>=4)return fail("Too many scans. Please retry in a minute.",429);
@@ -49,10 +50,11 @@ export async function POST(req:NextRequest) {
   catch(e){return fail(e instanceof Error&&e.name==="AbortError"?"AI timed out. Try a smaller notice.":"Groq AI service unavailable.",504);}
   finally{clearTimeout(timer);}
   if(!response.ok){
-    if(response.status===429)return fail("Groq rate limit reached. Retry shortly.",429);
-    if(response.status===401||response.status===403)return fail("Groq key or model access invalid.",503);
-    return fail("Groq analysis failed. Please try again.",502);
-  }
+    let message="";
+    try{const err=await response.json();message=String(err?.error?.message||"");}catch{}
+    const detail=groqFailure(response.status,message);
+    return fail(detail.error,detail.status,detail.code);
+   }
   let payloadOut:{choices?:Array<{message?:{content?:string|null}}>}={};
   try{payloadOut=await response.json();}catch{return fail("AI response was not readable.",502);}
   const rawText=payloadOut.choices?.[0]?.message?.content;
