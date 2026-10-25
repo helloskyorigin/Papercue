@@ -100,7 +100,7 @@ export async function POST(req:NextRequest) {
         partial=gate.partial===true;
         missing=gate.missing||[];
       }
-      const answer=await callGroq(makeGroqRequest({text,model}),key!,controller.signal);
+      const answer=await callGroq(makeGroqRequest({text,image:undefined,mime:undefined,model}),key!,controller.signal);
       if(!answer.ok)return fail(answer.error,answer.status,answer.code);
       const cleaned=safeOutput(answer.data,text);
       const parsed=AnalysisSchema.safeParse(cleaned);
