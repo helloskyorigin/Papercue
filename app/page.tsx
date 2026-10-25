@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ArrowRight, ArrowUpRight, CalendarDays, Check, CheckCircle2, ChevronDown,
   ClipboardCopy, Clock3, Download, FileCheck2, FileText, Info, LoaderCircle,
@@ -48,6 +49,7 @@ function saveFile(data: string, filename: string, mime: string) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>('file');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -116,10 +118,18 @@ export default function Home() {
   function onFileChange(e: ChangeEvent<HTMLInputElement>) { chooseFile(e.target.files?.[0]); e.target.value = ''; }
   function onDrop(e: DragEvent<HTMLLabelElement>) { e.preventDefault(); setDragOver(false); if (!loading) chooseFile(e.dataTransfer.files[0]); }
   function reset() { setFile(null); setNoticeText(''); clearResult(); if (fileInput.current) fileInput.current.value = ''; }
+  function openResults(analysis: Analysis, sample = false) {
+    try {
+      sessionStorage.setItem('papercue-result-v1', JSON.stringify({ analysis, sample, createdAt: Date.now() }));
+      sessionStorage.removeItem('papercue-done-v1');
+      router.push('/results');
+    } catch {
+      setError('Unable to open your results. Enable temporary browser storage and retry.');
+    }
+  }
   function demo() {
     if (loading) return;
-    setMode('text'); setFile(null); setNoticeText(DEMO_TEXT); setResult(DEMO_RESULT);
-    setIsDemo(true); setCompleted([]); setError(''); scrollToResult();
+    openResults(DEMO_RESULT, true);
   }
   async function analyze() {
     if (loading) return;
@@ -141,7 +151,7 @@ export default function Home() {
       if (!type.includes('application/json')) { throw new Error('The AI backend returned a webpage instead of JSON. This often means AI Studio imported only the frontend: verify /api/analyze and /api/health in the server runtime.'); }
       const body: { analysis?: Analysis; error?: string; code?: string } = await response.json();
       if (!response.ok || !body.analysis) throw new Error(body.error || `AI request failed (${response.status}). Check server logs and Groq configuration.`);
-      setResult(body.analysis); setIsDemo(false); scrollToResult();
+      openResults(body.analysis);
     } catch (err) {
       setError(err instanceof Error && err.name === 'AbortError' ? 'Analysis timed out. Try a smaller notice.' : err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally { setLoading(false); }
@@ -170,17 +180,18 @@ export default function Home() {
   return <div id="top" className="site">
     <header className="site-header"><div className="wrap header-inner"><Brand/><nav aria-label="Primary navigation"><a href="#how-it-works">How it works</a><a href="#privacy">Privacy</a></nav><a className="header-action" href="#workspace">Try for free <ArrowUpRight size={16}/></a></div></header>
     <main>
+      {loading && <div className="scan-screen" role="status" aria-live="polite"><div className="scan-card"><div className="scan-mark"><FileText size={27}/></div><p className="scan-kicker">PAPER CUE IS READING</p><h2>{phases[phase]}</h2><p>Turning your notice into useful next steps.</p><div className="scan-bar"><span key={phase}/></div><small>Keep this tab open while your plan is prepared.</small></div></div>}
       <section className="hero wrap" aria-labelledby="hero-title">
         <div className="hero-content"><div className="eyebrow"><span className="eyebrow-dot"/> YOUR NOTICE, SIMPLIFIED <span className="eyebrow-arrow">↗</span></div>
           <h1 id="hero-title">Never miss what <em>matters</em> in a notice.</h1>
-          <p>Upload a scholarship, admission or exam notice. Get the deadline, a clear checklist and the exact lines worth double-checking.</p>
-          <div className="hero-meta"><span><CheckCircle2 size={16}/> No signup</span><span><CheckCircle2 size={16}/> Hindi & English</span><span><CheckCircle2 size={16}/> Source evidence</span></div>
+          <p>Upload a scholarship, admission or exam notice. Get a simple action plan with important dates, steps and supporting quotes.</p>
+          <div className="hero-meta"><span><CheckCircle2 size={16}/> No signup</span><span><CheckCircle2 size={16}/> Hindi & English</span><span><CheckCircle2 size={16}/> Clear next steps</span></div>
         </div>
         <div className="hero-side" aria-label="PaperCue benefits"><div className="side-num">01 <span>/ 03</span></div><p>Less reading.<br/><strong>More doing.</strong></p><span>Built for the important little details.</span><div className="side-star" aria-hidden="true">✳</div></div>
       </section>
 
       <section id="workspace" className="workspace-section wrap" aria-label="Analyze your notice">
-        <div className="workspace-heading"><div><span className="section-label">YOUR WORKSPACE</span><h2>A clear plan starts here.</h2></div><button className="sample-button" onClick={demo} disabled={loading}><Sparkles size={16}/> Explore with a sample <ArrowRight size={16}/></button></div>
+        <div className="workspace-heading"><div><span className="section-label">START HERE</span><h2>Start with your notice.</h2></div><button className="sample-button" onClick={demo} disabled={loading}><Sparkles size={16}/> Explore with a sample <ArrowRight size={16}/></button></div>
         <div className="workspace-grid">
           <div className="panel input-panel"><div className="panel-title"><span className="panel-index">01</span><div><h3>Add your notice</h3><p>Select a file or paste the notice text.</p></div></div>
             <div className="tabs" role="tablist" aria-label="Notice input method"><button type="button" role="tab" aria-selected={mode==='file'} className={mode==='file'?'active':''} onClick={()=>setTab('file')} disabled={loading}><UploadCloud size={17}/> Upload file</button><button type="button" role="tab" aria-selected={mode==='text'} className={mode==='text'?'active':''} onClick={()=>setTab('text')} disabled={loading}><FileText size={17}/> Paste text</button></div>
@@ -194,25 +205,9 @@ export default function Home() {
               {file && previewUrl && resolveSupportedMime(file.type,file.name)?.startsWith('image/') && <img className="selected-image-preview" src={previewUrl} alt="Selected notice preview"/>}
       {file && <div className="selection-row"><span><FileCheck2 size={16}/> File ready for analysis</span><button type="button" onClick={reset} disabled={loading} aria-label="Remove file"><X size={17}/></button></div>}
             </div> : <div className="input-area"><label className="input-label" htmlFor="notice-text">Notice text</label><textarea id="notice-text" rows={9} placeholder="Paste the text of a school notice here…" maxLength={MAX_TEXT} value={noticeText} disabled={loading} onChange={e=>{setNoticeText(e.target.value); if(result) clearResult();}}/><div className="text-count">{noticeText.length.toLocaleString('en-IN')} / 18,000 characters</div></div>}
-            <div className="input-actions"><div className={`connection-status connection-${backendStatus}`} role="status" aria-live="polite"><span className="connection-dot"/><span><strong>{backendStatus==='ready'?'Groq verified':backendStatus==='checking'?'Checking AI connection':backendStatus==='unconfigured'?'AI configuration needed':backendStatus==='unverified'?'Groq verification unavailable':'Backend not connected'}</strong><small>{backendMessage}</small></span><button type="button" disabled={checkingHealth} onClick={()=>void checkConnection()} aria-label="Recheck AI connection" title="Recheck connection"><RotateCcw size={16}/></button></div>{error && <div className="error-message" role="alert"><Info size={17}/><span>{error}</span></div>}<button className="primary-button" disabled={loading || !canAnalyze || backendStatus==='checking'} onClick={analyze}>{loading?<><LoaderCircle className="spin" size={18}/> Analyzing notice…</>:<>Create my action plan <ArrowRight size={18}/></>}</button><p className="fineprint"><LockKeyhole size={14}/> No account needed. Your notice is sent to Groq AI for analysis—avoid personal IDs or sensitive information.</p></div>
+            <div className="input-actions">{error && <div className="error-message" role="alert"><Info size={17}/><span>{error}</span></div>}<button className="primary-button" disabled={loading || !canAnalyze || backendStatus==='checking'} onClick={analyze}>{loading?<><LoaderCircle className="spin" size={18}/> Analyzing notice…</>:<>Analyze notice <ArrowRight size={18}/></>}</button><p className="fineprint"><LockKeyhole size={14}/> No signup. Your notice is processed by an external AI service. Avoid IDs and sensitive records.</p></div>
           </div>
-          <div className="panel result-panel" ref={resultsRef} aria-live="polite"><div className="panel-title"><span className="panel-index">02</span><div><h3>Your action plan</h3><p>Deadlines, tasks and supporting evidence.</p></div>{result && <span className={`status-badge ${isDemo?'demo-badge':''}`}>{isDemo?'Sample data':'Ready to review'}</span>}</div>
-            {loading ? <div className="loading-state"><div className="loading-emblem"><Sparkles size={29}/></div><h4>{phases[phase]}</h4><p>We’re turning your notice into a practical checklist.</p><div className="loading-track"><span key={phase}/></div><small>Please keep this tab open</small></div>
-              : !result ? <div className="empty-state"><div className="empty-preview"><div className="paper-lines"><span/><span/><span/></div><div className="check-float"><Check size={22}/></div></div><span className="empty-kicker">A LITTLE MORE CLARITY</span><h4>From document to done.</h4><p>Your results will appear here after analysis. Or explore a clearly labeled sample first.</p><button type="button" className="empty-link" onClick={demo}>See an example <ArrowRight size={16}/></button></div>
-              : <div className="results">
-                <div className="result-document"><span className="result-doc-icon"><FileText size={21}/></span><div><span>DOCUMENT SUMMARY</span><h4>{result.documentTitle}</h4>{result.issuer && <small>{result.issuer}</small>}</div></div>
-                <p className="result-summary">{result.summary}</p>
-                <div className={`deadline-box ${result.deadline?'':'deadline-unknown'}`}><div><span className="deadline-kicker"><CalendarDays size={16}/> IMPORTANT DATE</span><strong>{dateLabel(result.deadline)}</strong><small>{!result.deadline?'No confirmed deadline extracted':result.deadlineEvidenceStatus==='matched'?'Supporting quote found — verify the date':'Date needs manual verification'}</small></div>{result.deadline && <button type="button" onClick={exportCalendar} title="Save deadlines to calendar" aria-label="Download calendar file"><Download size={18}/></button>}</div>
-                {result.deadlineEvidence && <details className="deadline-evidence"><summary><ShieldCheck size={15}/> Read deadline source quote <ChevronDown size={14}/></summary><p>“{result.deadlineEvidence}”</p></details>}
-                <div className="checklist-header"><h4>Next steps <span>{total}</span></h4><span>{completed.length}/{total} done</span></div><div className="completion-track" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Checklist completion"><span style={{width:`${progress}%`}}/></div>
-                {total ? <div className="tasks">{result.items.map((item,index)=>{const checked=completed.includes(index); return <div className={`task ${checked?'task-done':''}`} key={index}><button type="button" className="task-check" aria-label={`${checked?'Mark unfinished':'Mark completed'}: ${item.title}`} aria-pressed={checked} onClick={()=>setCompleted(old=>checked?old.filter(x=>x!==index):[...old,index])}>{checked?<Check size={16}/>:null}</button><div className="task-body"><div className="task-head"><strong>{item.title}</strong>{item.dueDate && <span className="task-date"><Clock3 size={12}/>{dateLabel(item.dueDate)}</span>}</div>{item.description && <p>{item.description}</p>}<details className="evidence"><summary><ShieldCheck size={14}/>{item.evidenceStatus==='matched'?'Quote found in source':'Review source manually'}<ChevronDown size={14}/></summary><div>“{item.evidence || 'No supporting quote supplied.'}”<small>A matching quote does not guarantee the interpretation is correct.</small></div></details></div></div>;})}</div> : <p className="empty-steps">No explicit action steps found. Check the notice manually.</p>}
-                {result.missingInformation.length>0 && <div className="attention-box"><strong><Info size={16}/> Missing or unclear</strong><ul>{result.missingInformation.map((x,i)=><li key={i}>{x}</li>)}</ul></div>}
-                {result.cautions.length>0 && <div className="caution-box">{result.cautions.map((x,i)=><p key={i}><Info size={14}/>{x}</p>)}</div>}
-                <div className="result-actions"><button onClick={exportChecklist}><Download size={17}/> Download plan</button><button onClick={copyPlan}>{copied?<Check size={17}/>:<ClipboardCopy size={17}/>} {copied?'Copied!':'Copy'}</button>{result.deadline && <button onClick={exportCalendar}><CalendarDays size={17}/> Calendar</button>}</div>
-                <details className="original-source" open={isDemo}><summary><FileText size={17}/> Review original notice <ChevronDown size={16}/></summary>{mode==='text'?<pre>{noticeText}</pre>:previewUrl && file?.type==='application/pdf'?<iframe src={previewUrl} title="Original uploaded notice"/>:previewUrl?<img src={previewUrl} alt="Original uploaded notice"/>:<p>Source preview not available.</p>}</details>
-                <p className="results-disclaimer"><ShieldCheck size={15}/> Always confirm dates, eligibility and required documents with the official issuer before acting.</p>
-              </div>}
-          </div>
+
         </div>
       </section>
       <section id="how-it-works" className="how wrap"><div className="how-intro"><span className="section-label">HOW IT WORKS</span><h2>Three steps. <em>Less confusion.</em></h2></div><div className="how-grid"><div><span>01</span><h3>Add the notice</h3><p>Upload a clear photo, text-based PDF or paste the original text.</p></div><div><span>02</span><h3>Review what matters</h3><p>See deadlines, instructions and source quotes in one place.</p></div><div><span>03</span><h3>Get it done</h3><p>Tick off tasks, copy your plan or export calendar dates.</p></div></div></section>
